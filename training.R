@@ -28,8 +28,7 @@ load("AB4x_train.Rdata")
 
 # Build your model; example code follows:
 
-# ~~~ example code start ~~~
-# Annina exploaratory analysis:
+# ~~~ PREPROCESSING ~~~
 
 # to make sure that the original dataset is not altered
 train_raw <- train  
@@ -46,13 +45,15 @@ var_classes <- sapply(train, class)
 var_classes <- sapply(var_classes, `[`, 1)
 table(var_classes)
 
+#"emig" is character
+train$emig <- as.factor(train$emig)
 
 # remove NAs
-train_clean <- na.omit(train)
-sum(is.na(train_clean))
+train <- na.omit(train)
+sum(is.na(train))
 
+# ~~~ Annina Exploratory Analysis ~~~
 
-#
 # ~~~ example code end ~~~
 
 # Save final model 
