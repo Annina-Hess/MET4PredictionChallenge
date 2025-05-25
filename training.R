@@ -5,7 +5,7 @@ rm(list=ls())
 ############################################################
 
 # Set your working directory here. 
-setwd("...")
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 # Load necessary packages here. All packages must
 # be available for install via install.packages()
@@ -13,6 +13,7 @@ setwd("...")
 
 library("ROCR")
 library("dplyr")
+library(tidymodels)
 
 # define function to assess classification performance
 auc <- function(phat,y){
@@ -52,9 +53,89 @@ train$emig <- as.factor(train$emig)
 train <- na.omit(train)
 sum(is.na(train))
 
-# ~~~ Annina Exploratory Analysis ~~~
+# ~~~ ANNINA EXPLORATORY ANALYSIS ~~~
+
+# ~~~ Logistic Regression ~~~
+#tidymodels is imported above
+set.seed(123)  
+
+folds <- vfold_cv(train, v = 3) # should be increased
+
+# Define a preprocessing recipe
+logistic_recipe <- recipe(emig ~ ., data = train) %>%
+  step_dummy(all_nominal_predictors()) %>%  # Convert categorical predictors to dummy variables
+  step_zv(all_predictors()) %>% 
+  step_corr(all_predictors(), threshold = 0.9)  # Remove highly correlated predictors# Remove predictors with zero variance (i.e., same value for all rows)
+
+# Specify a logistic regression model
+logistic_spec <- logistic_reg() %>%
+  set_engine("glm") %>%           # Use base R's GLM engine
+  set_mode("classification")      # Explicitly declare classification mode
+
+# Combine recipe and model into a workflow
+logistic_wf <- workflow() %>%
+  add_model(logistic_spec) %>%
+  add_recipe(logistic_recipe)
+
+# Fit model with 10-fold cross-validation
+cv_results <- fit_resamples(
+  logistic_wf,
+  resamples = folds,
+  metrics = metric_set(accuracy, roc_auc, sensitivity, specificity),
+  control = control_resamples(save_pred = TRUE)
+)
+
+best_model <- select_best(cv_results, metric = "roc_auc")
+
+final_logistic_wf <- finalize_workflow(logistic_wf, best_model)
+
+final_logistic_reg <- fit(final_logistic_wf, data = train)
+
+save(final_logistic_reg, file = "final_logistic_model.Rdata")
+
+# ~~~ Elastic Net Regression ~~~
+
+elastic_recipe <- recipe(emig ~ ., data = train) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_zv(all_predictors()) %>%
+  step_corr(all_predictors(), threshold = 0.9)
+
+# 3. Elastic Net model specification
+elastic_spec <- logistic_reg(
+  penalty = tune(),   # We'll tune this
+  mixture = 0.5       # 0.5 = Elastic Net (mix of Lasso and Ridge)
+) %>%
+  set_engine("glmnet") %>%
+  set_mode("classification")
+
+# 4. Workflow
+elastic_wf <- workflow() %>%
+  add_recipe(elastic_recipe) %>%
+  add_model(elastic_spec)
+
+# 5. Penalty tuning grid
+penalty_grid <- grid_regular(penalty(), levels = 30)
+
+# 6. Tune model
+cv_results <- tune_grid(
+  elastic_wf,
+  resamples = folds,
+  grid = penalty_grid,
+  metrics = metric_set(roc_auc, accuracy),
+  control = control_grid(save_pred = TRUE)
+)
+
+# 7. Select best penalty
+best_model <- select_best(cv_results, metric = "roc_auc")
+
+# 8. Finalize workflow with best model
+final_wf <- finalize_workflow(elastic_wf, best_model)
+
+# 9. Fit to full training data
+final_model <- fit(final_wf, data = train)
 
 # ~~~ example code end ~~~
 
 # Save final model 
-save(m, file="final_model.Rdata")
+save(final_model, file="final_model.Rdata")
+
