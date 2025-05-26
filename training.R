@@ -38,7 +38,7 @@ train <- train_raw
 # missing variables: how many and where
 na_counts <- colSums(is.na(train))
 na_vars <- na_counts[na_counts > 0]
-na_vars # missing values are in age and gender. 
+na_vars # missing values are in age and gender. Instead of removing, I impute missing values in the recipes
 
 # any non-numeric vars?
 # Get the class of each column
@@ -47,11 +47,7 @@ var_classes <- sapply(var_classes, `[`, 1)
 table(var_classes)
 
 #"emig" is character
-train$emig <- as.factor(train$emig)
-
-# remove NAs
-train <- na.omit(train)
-sum(is.na(train))
+train$emig <- factor(train$emig, levels = c("No", "Yes"))
 
 # ~~~ ANNINA EXPLORATORY ANALYSIS ~~~
 
@@ -63,8 +59,11 @@ folds <- vfold_cv(train, v = 3) # should be increased
 
 # Define a preprocessing recipe
 logistic_recipe <- recipe(emig ~ ., data = train) %>%
+  step_impute_mode(all_nominal_predictors()) %>%
+  step_impute_mode(all_nominal_predictors())%>%
   step_dummy(all_nominal_predictors()) %>%  # Convert categorical predictors to dummy variables
   step_zv(all_predictors()) %>% 
+  step_lincomb(all_predictors()) %>% 
   step_corr(all_predictors(), threshold = 0.9)  # Remove highly correlated predictors# Remove predictors with zero variance (i.e., same value for all rows)
 
 # Specify a logistic regression model
@@ -96,6 +95,8 @@ save(final_logistic_reg, file = "final_logistic_model.Rdata")
 # ~~~ Elastic Net Regression ~~~
 
 elastic_recipe <- recipe(emig ~ ., data = train) %>%
+  step_impute_mean(all_numeric_predictors()) %>%
+  step_impute_mode(all_nominal_predictors()) %>%
   step_dummy(all_nominal_predictors()) %>%
   step_zv(all_predictors()) %>%
   step_corr(all_predictors(), threshold = 0.9)

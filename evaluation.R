@@ -7,7 +7,7 @@
 rm(list=ls())
 
 # Set your working directory here. 
-setwd("...")
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 # Load necessary packages here. All packages must
 # be available for install via install.packages()
@@ -43,7 +43,7 @@ age_sd <- sd(test$age,na.rm=TRUE)
 test <- test |> mutate(age  = (age-age_mu)/age_sd)
 
 # define outcome as binary
-test <- test |> mutate(emig = as.integer(emig=="Yes"))
+test$emig <- factor(test$emig, levels = c("No", "Yes"))
 
 # simple mean imputation
 test <- test |> mutate(age = if_else(is.na(age),age_mu,age))
@@ -57,7 +57,10 @@ load("final_model.Rdata")
 # Note that `pred` should be a vector of predicted probabilities;
 # not a vector of predicted classes
 # ~~~ example code start ~~~
-pred <- predict(m,newdata=test,type="response")
+
+#pred <- predict(final_model,newdata=test,type="response") predict for elastic net
+pred <- predict(final_model, new_data = test, type = "prob")$.pred_Yes
+
 # ~~~ example code end ~~~
 
 # Model performance:
