@@ -51,8 +51,10 @@ test <- test |> mutate(age = if_else(is.na(age),age_mu,age))
 # ~~~ example code end ~~~
 
 # Load trained model 
-load("final_elasticnetmodel.Rdata")
+load("final_elasticnet_model.Rdata")
 load("final_logistic_model.Rdata")
+load("final_randomforest_model.Rdata")
+#randomforest
 
 # Obtain predictions
 # Note that `pred` should be a vector of predicted probabilities;

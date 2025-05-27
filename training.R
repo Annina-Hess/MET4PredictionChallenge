@@ -133,10 +133,10 @@ best_model <- select_best(cv_results, metric = "roc_auc")
 final_wf <- finalize_workflow(elastic_wf, best_model)
 
 # 9. Fit to full training data
-final_model <- fit(final_wf, data = train)
+final_elasticnet_reg <- fit(final_wf, data = train)
 
 # Save final model 
-save(final_elasticnet_model, file="final_elasticnet_reg.Rdata")
+save(final_elasticnet_reg, file="final_elasticnet_model.Rdata")
 
 # ~~~ Random Forest ~~~
 
