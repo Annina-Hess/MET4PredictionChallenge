@@ -135,8 +135,57 @@ final_wf <- finalize_workflow(elastic_wf, best_model)
 # 9. Fit to full training data
 final_model <- fit(final_wf, data = train)
 
-# ~~~ example code end ~~~
-
 # Save final model 
-save(final_model, file="final_model.Rdata")
+save(final_elasticnet_model, file="final_elasticnet_reg.Rdata")
 
+# ~~~ Random Forest ~~~
+
+rf_recipe <- recipe(emig ~ ., data = train) %>%
+  step_impute_mean(all_numeric_predictors()) %>%
+  step_impute_mode(all_nominal_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_zv(all_predictors()) %>%
+  step_corr(all_predictors(), threshold = 0.9)
+
+# 2. Random Forest model specification (tunable)
+rf_spec <- rand_forest(
+  mtry = tune(),
+  min_n = tune(),
+  trees = 500  # number of trees to grow
+) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+
+# 3. Workflow
+rf_wf <- workflow() %>%
+  add_recipe(rf_recipe) %>%
+  add_model(rf_spec)
+
+# 4. Create tuning grid
+rf_grid <- grid_regular(
+  mtry(range = c(2, 10)),    # you can adjust depending on number of predictors
+  min_n(range = c(2, 10)),
+  levels = 5
+)
+
+# 5. Cross-validation
+set.seed(123)
+cv_results_rf <- tune_grid(
+  rf_wf,
+  resamples = folds,
+  grid = rf_grid,
+  metrics = metric_set(roc_auc, accuracy),
+  control = control_grid(save_pred = TRUE)
+)
+
+# 6. Select best parameters
+best_rf <- select_best(cv_results_rf, metric = "roc_auc")
+
+# 7. Finalize workflow with best hyperparameters
+final_rf_wf <- finalize_workflow(rf_wf, best_rf)
+
+# 8. Fit to full training data
+final_rf_model <- fit(final_rf_wf, data = train)
+
+# 9. Save final model
+save(final_rf_model, file = "final_randomforest_model.Rdata")

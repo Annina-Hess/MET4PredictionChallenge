@@ -51,7 +51,8 @@ test <- test |> mutate(age = if_else(is.na(age),age_mu,age))
 # ~~~ example code end ~~~
 
 # Load trained model 
-load("final_model.Rdata")
+load("final_elasticnetmodel.Rdata")
+load("final_logistic_model.Rdata")
 
 # Obtain predictions
 # Note that `pred` should be a vector of predicted probabilities;
@@ -59,7 +60,14 @@ load("final_model.Rdata")
 # ~~~ example code start ~~~
 
 #pred <- predict(final_model,newdata=test,type="response") predict for elastic net
-pred <- predict(final_model, new_data = test, type = "prob")$.pred_Yes
+pred <- predict(final_elasticnet_reg, new_data = test, type = "prob")$.pred_Yes
+
+# Predict class probabilities PREDICT FOR LOGISTIC REGRESSION
+pred<- predict(final_logistic_reg, new_data = test, type = "prob")$.pred_Yes
+
+# for RANDOM FOREST
+pred <- predict(final_rf_model, new_data = test, type = "prob")$.pred_Yes
+
 
 # ~~~ example code end ~~~
 
