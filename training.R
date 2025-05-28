@@ -107,7 +107,7 @@ elastic_spec <- logistic_reg(
   mixture = 0.5       # 0.5 = Elastic Net (mix of Lasso and Ridge)
 ) %>%
   set_engine("glmnet") %>%
-  set_mode("classification")
+  set_mode("classification") # hallo
 
 # 4. Workflow
 elastic_wf <- workflow() %>%
