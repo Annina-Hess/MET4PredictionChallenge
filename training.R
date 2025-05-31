@@ -424,52 +424,6 @@ save(final_logistic_reg, file = "final_logistic_model.Rdata")
 # 9. Output performance metrics
 collect_metrics(cv_results)
 
-# ~~~ Elastic Net Regression ~~~
-
-elastic_recipe <- recipe(emig ~ ., data = train) %>%
-  step_impute_mean(all_numeric_predictors()) %>%
-  step_impute_mode(all_nominal_predictors()) %>%
-  step_dummy(all_nominal_predictors()) %>%
-  step_zv(all_predictors()) %>%
-  step_corr(all_predictors(), threshold = 0.9)
-
-# 3. Elastic Net model specification
-elastic_spec <- logistic_reg(
-  penalty = tune(),   # We'll tune this
-  mixture = 0.5       # 0.5 = Elastic Net (mix of Lasso and Ridge)
-) %>%
-  set_engine("glmnet") %>%
-  set_mode("classification") # hallo
-
-# 4. Workflow
-elastic_wf <- workflow() %>%
-  add_recipe(elastic_recipe) %>%
-  add_model(elastic_spec)
-
-# 5. Penalty tuning grid
-penalty_grid <- grid_regular(penalty(), levels = 30)
-
-# 6. Tune model
-cv_results <- tune_grid(
-  elastic_wf,
-  resamples = folds,
-  grid = penalty_grid,
-  metrics = metric_set(roc_auc, accuracy),
-  control = control_grid(save_pred = TRUE)
-)
-
-# 7. Select best penalty
-best_model <- select_best(cv_results, metric = "roc_auc")
-
-# 8. Finalize workflow with best model
-final_wf <- finalize_workflow(elastic_wf, best_model)
-
-# 9. Fit to full training data
-final_elasticnet_reg <- fit(final_wf, data = train)
-
-# Save final model 
-save(final_elasticnet_reg, file="final_elasticnet_model.Rdata")
-
 # ~~~ Random Forest ~~~
 
 rf_spec <- rand_forest(
