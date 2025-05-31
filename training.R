@@ -395,7 +395,7 @@ folds <- vfold_cv(train, v = 5) # should be increased
 logistic_recipe <- recipe(emig ~ ., data = train) %>%
   step_impute_mode(all_nominal_predictors()) %>%
   step_dummy(all_nominal_predictors()) %>%  # Convert categorical predictors to dummy variables
-  step_zv(all_predictors()) # Remove predictors with zero variance (i.e., same value for all rows)
+  step_zv(all_predictors()) %>% # Remove predictors with zero variance (i.e., same value for all rows)
   step_lincomb(all_predictors()) %>% 
   step_corr(all_predictors(), threshold = 0.9)  # Remove highly correlated predictors
 
