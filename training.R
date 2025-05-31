@@ -47,10 +47,11 @@ na_vars # Missing values are in age and gender.
 # Any non-numeric vars?
 # Get the class of each column
 var_classes <- sapply(train, class)
+print(var_classes)
 var_classes <- sapply(var_classes, `[`, 1)
 table(var_classes)
 
-# "emig" is a character variable
+# Make character variable "emig" to factor
 train$emig <- factor(train$emig, levels = c("No", "Yes"))
 
 ###########################
@@ -224,34 +225,34 @@ em_recipe <- recipe(emig ~ q4113 + q409 +
                       q106+
                       q102b+
                       q4116+
-                      q1+
-                      q1010b+
+                      edu_combined+
+                      q701b+
+                      q1010+
+                      q2181+
+                      q2016+
+                      q1074+
+                      region+
+                      age+
+                      q20421+
                       q105+
                       q103a2+
+                      q1010b+
+                      q103a2+
                       q2044+
-                      q2+
-                      q20421+
-                      q1074+
-                      q2181+
                       q2011+
-                      age+
                       q20422+
                       q4062+
                       q204a2+
                       q701b+
                       q2013+
-                      edu_combined+
-                      region+
                       q514+
                       q2042+
-                      q2016+
                       q1001c+
                       q5181+
                       q261b2+
                       q103a2+
                       q2043+
                       q513_combined+
-                      q1010+
                       q7013, data = train) %>%
   step_indicate_na(q1002) %>% # New gender/age columns to see if NAs
   step_indicate_na(age) %>%   # are predictive of emigration
@@ -388,16 +389,15 @@ xgb.importance(model = xgb_final) %>%
 #tidymodels is imported above
 set.seed(123)  
 
-folds <- vfold_cv(train, v = 3) # should be increased
+folds <- vfold_cv(train, v = 5) # should be increased
 
 # Define a preprocessing recipe
 logistic_recipe <- recipe(emig ~ ., data = train) %>%
   step_impute_mode(all_nominal_predictors()) %>%
-  step_impute_mode(all_nominal_predictors())%>%
   step_dummy(all_nominal_predictors()) %>%  # Convert categorical predictors to dummy variables
-  step_zv(all_predictors()) %>% 
+  step_zv(all_predictors()) # Remove predictors with zero variance (i.e., same value for all rows)
   step_lincomb(all_predictors()) %>% 
-  step_corr(all_predictors(), threshold = 0.9)  # Remove highly correlated predictors# Remove predictors with zero variance (i.e., same value for all rows)
+  step_corr(all_predictors(), threshold = 0.9)  # Remove highly correlated predictors
 
 # Specify a logistic regression model
 logistic_spec <- logistic_reg() %>%
@@ -416,6 +416,10 @@ cv_results <- fit_resamples(
   metrics = metric_set(accuracy, roc_auc, sensitivity, specificity),
   control = control_resamples(save_pred = TRUE)
 )
+
+# Show best-performing model
+cv_results %>% 
+  show_best(metric = "roc_auc", n = 10)
 
 best_model <- select_best(cv_results, metric = "roc_auc")
 
