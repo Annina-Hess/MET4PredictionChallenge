@@ -387,29 +387,18 @@ xgb.importance(model = xgb_final) %>%
 
 # ~~~ Logistic Regression ~~~
 #tidymodels is imported above
-set.seed(123)  
 
-folds <- vfold_cv(train, v = 5) # should be increased
-
-# Define a preprocessing recipe
-logistic_recipe <- recipe(emig ~ ., data = train) %>%
-  step_impute_mode(all_nominal_predictors()) %>%
-  step_dummy(all_nominal_predictors()) %>%  # Convert categorical predictors to dummy variables
-  step_zv(all_predictors()) %>% # Remove predictors with zero variance (i.e., same value for all rows)
-  step_lincomb(all_predictors()) %>% 
-  step_corr(all_predictors(), threshold = 0.9)  # Remove highly correlated predictors
-
-# Specify a logistic regression model
 logistic_spec <- logistic_reg() %>%
-  set_engine("glm") %>%           # Use base R's GLM engine
-  set_mode("classification")      # Explicitly declare classification mode
+  set_engine("glm") %>%
+  set_mode("classification")
 
-# Combine recipe and model into a workflow
+# 3. Combine into a workflow
 logistic_wf <- workflow() %>%
   add_model(logistic_spec) %>%
-  add_recipe(logistic_recipe)
+  add_recipe(em_recipe)
 
-# Fit model with 10-fold cross-validation
+# 4. Fit model with cross-validation
+set.seed(123)
 cv_results <- fit_resamples(
   logistic_wf,
   resamples = folds,
@@ -417,17 +406,23 @@ cv_results <- fit_resamples(
   control = control_resamples(save_pred = TRUE)
 )
 
-# Show best-performing model
-cv_results %>% 
+# 5. Show top results
+cv_results %>%
   show_best(metric = "roc_auc", n = 10)
 
+# 6. Select best model (if there were tuning parameters)
 best_model <- select_best(cv_results, metric = "roc_auc")
 
+# 7. Finalize and fit to full training data
 final_logistic_wf <- finalize_workflow(logistic_wf, best_model)
 
 final_logistic_reg <- fit(final_logistic_wf, data = train)
 
+# 8. Save final model
 save(final_logistic_reg, file = "final_logistic_model.Rdata")
+
+# 9. Output performance metrics
+collect_metrics(cv_results)
 
 # ~~~ Elastic Net Regression ~~~
 
@@ -477,35 +472,27 @@ save(final_elasticnet_reg, file="final_elasticnet_model.Rdata")
 
 # ~~~ Random Forest ~~~
 
-rf_recipe <- recipe(emig ~ ., data = train) %>%
-  step_impute_mean(all_numeric_predictors()) %>%
-  step_impute_mode(all_nominal_predictors()) %>%
-  step_dummy(all_nominal_predictors()) %>%
-  step_zv(all_predictors()) %>%
-  step_corr(all_predictors(), threshold = 0.9)
-
-# 2. Random Forest model specification (tunable)
 rf_spec <- rand_forest(
   mtry = tune(),
   min_n = tune(),
-  trees = 500  # number of trees to grow
+  trees = 500
 ) %>%
   set_engine("ranger", importance = "impurity") %>%
   set_mode("classification")
 
-# 3. Workflow
+# Workflow using your recipe
 rf_wf <- workflow() %>%
-  add_recipe(rf_recipe) %>%
+  add_recipe(em_recipe) %>%
   add_model(rf_spec)
 
-# 4. Create tuning grid
+# Create tuning grid
 rf_grid <- grid_regular(
-  mtry(range = c(2, 10)),    # you can adjust depending on number of predictors
+  mtry(range = c(2, 10)),
   min_n(range = c(2, 10)),
   levels = 5
 )
 
-# 5. Cross-validation
+# Cross-validation
 set.seed(123)
 cv_results_rf <- tune_grid(
   rf_wf,
@@ -515,14 +502,19 @@ cv_results_rf <- tune_grid(
   control = control_grid(save_pred = TRUE)
 )
 
-# 6. Select best parameters
+# Select best hyperparameters
 best_rf <- select_best(cv_results_rf, metric = "roc_auc")
 
-# 7. Finalize workflow with best hyperparameters
+# Finalize workflow
 final_rf_wf <- finalize_workflow(rf_wf, best_rf)
 
-# 8. Fit to full training data
+# Fit final model
 final_rf_model <- fit(final_rf_wf, data = train)
 
-# 9. Save final model
+# Save final model
 save(final_rf_model, file = "final_randomforest_model.Rdata")
+
+cv_results_rf %>%
+  show_best(metric = "roc_auc", n = 1)
+
+collect_metrics(cv_results_rf)
