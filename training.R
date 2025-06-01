@@ -19,6 +19,7 @@ library(dplyr)
 library(tidymodels)
 library(xgboost)
 library(doFuture)
+library(vip)
 
 # define function to assess classification performance
 auc <- function(phat,y){
@@ -476,3 +477,9 @@ cv_results_rf %>%
   show_best(metric = "roc_auc", n = 1)
 
 collect_metrics(cv_results_rf)
+
+# Extract the fitted model from the workflow
+rf_fit <- extract_fit_parsnip(final_rf_model)$fit
+
+# Plot variable importance
+vip(rf_fit, num_features = 20)
