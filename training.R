@@ -352,6 +352,7 @@ penalized_wf <- workflow() %>%
                 q409_Less.than.once.a.week + q7013_Somewhat.negative + q20421_Good +
                 q1010b_X3 + q1010b_X7 + q513_combined_X9 + q513_combined_X4
   )
+)
 
 penalty_grid <- grid_regular(
   penalty(range = c(-4, 0), trans = log10_trans()),  # e.g., 10^-4 to 10^0
