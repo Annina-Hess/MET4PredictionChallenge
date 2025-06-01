@@ -218,13 +218,15 @@ train$emig <- as.factor(train$emig)
 # XGBoost: can handle factors
 
 # Define recipe for preprocessing
-em_recipe <- recipe(emig ~ q4113 + q409 +
+em_recipe <- recipe(emig ~ q4113+ 
+                      q409 +
+                      q1002+
                       q1005_combined +
-                      q1002 +
-                      q101+
-                      q106+
-                      q102b+
                       q4116+
+                      q103a2+
+                      q102b+
+                      q106+
+                      q101+
                       edu_combined+
                       q701b+
                       q1010+
@@ -232,28 +234,23 @@ em_recipe <- recipe(emig ~ q4113 + q409 +
                       q2016+
                       q1074+
                       region+
-                      age+
+                      age+ 
                       q20421+
                       q105+
-                      q103a2+
-                      q1010b+
-                      q103a2+
-                      q2044+
-                      q2011+
-                      q20422+
-                      q4062+
-                      q204a2+
-                      q701b+
-                      q2013+
-                      q514+
-                      q2042+
                       q1001c+
+                      q514+
                       q5181+
-                      q261b2+
-                      q103a2+
-                      q2043+
+                      q2011+
                       q513_combined+
-                      q7013, data = train) %>%
+                      q1010b+
+                      q2013+
+                      q7013+
+                      q4062+
+                      q2042+
+                      q20422+
+                      q261b2+
+                      q2044+
+                      q2043, data = train) %>%
   step_indicate_na(q1002) %>% # New gender/age columns to see if NAs
   step_indicate_na(age) %>%   # are predictive of emigration
   step_impute_mode(q1002) %>%  # Mode as only 5% NAs
@@ -265,6 +262,42 @@ em_recipe <- recipe(emig ~ q4113 + q409 +
 # Create cross-validation setup
 set.seed(42)
 folds <- vfold_cv(train, v = 5, strata = emig)
+
+
+#########
+prep_recipe <- prep(em_recipe)
+baked_train <- bake(prep_recipe, new_data = NULL)
+
+selected_vars <- c(
+  "q4113_No", "q409_I.do.not.use.the.internet", "q1002_Female", "q1005_combined_Unemployed",
+  "q1005_combined_Housewife", "q4116_No", "q102b_Bad", "q103a2_Neither.agree.nor.disagree",
+  "q101_Very.bad", "q106_To.a.limited.extent", "edu_combined_BA", "q106_To.a.medium.extent",
+  "q701b_Very.bad", "q2181_I.disagree", "q1010_Married", "q2016_Quite.a.lot.of.trust",
+  "age", "q1074_Not.much", "region_Rural", "q20421_Very.bad", "q105_Absolutely.not.ensured",
+  "q106_Not.treated.equally.at.all", "q105_Not.ensured", "q103a2_Somewhat.disagree",
+  "q102b_Good", "q1001c", "q1074_Not.applicable", "q514_I.disagree", "q5181_Not.suitable.at.all",
+  "q2181_I.strongly.disagree", "q514_I.strongly.disagree", "q1010b_X2", "q2044_Good",
+  "q513_combined_X7", "q2011_No.trust.at.all", "q2013_No.trust.at.all", "q1010_Widowed",
+  "q7013_Somewhat.positive", "q1005_combined_Student", "q20422_Bad", "q101_Good",
+  "q2042_Good", "q513_combined_X1", "q2011_Not.very.much.trust", "q4062_I.don.t.follow.it.ever",
+  "q4062_A.number.of.times.a.week", "q261b2_X6", "q1074_Not.at.all", "q2042_Very.bad",
+  "q261b2_X3", "q102b_Very.bad", "q2043_Good", "q7013_Neither.positive.nor.negative",
+  "q1005_combined_Other", "q2043_This.is.not.the.government.s.responsibility..Do.not.read.",
+  "q2016_Not.very.much.trust", "q103a2_Strongly.disagree", "q1010b_X8", "region_Refugee.camp",
+  "q261b2_X4", "q2011_Quite.a.lot.of.trust", "q2044_Bad", "q20421_Bad", "q409_Several.times.a.week",
+  "q1010b_X10", "q1010_Divorced.or.separated", "q2043_Bad", "q409_Daily", "q409_Once.a.week",
+  "q1010b_X11", "q4062_Rarely", "q2044_This.is.not.the.government.s.responsibility..Do.not.read.",
+  "q261b2_X5", "q513_combined_X8", "q261b2_X2", "q5181_Somewhat.suitable", "q701b_Somewhat.bad",
+  "q2016_No.trust.at.all", "edu_combined_Above.BA", "edu_combined_Secondary..Inc..Professional.Technical.Diploma.",
+  "q513_combined_Complete.Satisfied", "q20422_Good", "q20422_Very.bad", "q1010b_X1",
+  "q513_combined_X6", "q701b_Neither.good.nor.bad", "q1010b_X6", "q409_Less.than.once.a.week",
+  "q7013_Somewhat.negative", "q20421_Good", "q1010b_X3", "q1010b_X7", "q513_combined_X9",
+  "q513_combined_X4"
+)
+
+train_reduced <- baked_train |> select(all_of(selected_vars), emig)
+
+folds <- vfold_cv(train_reduced, v = 5, strata = emig)
 
 ###################
 ### Build model ###
@@ -281,9 +314,44 @@ penalized_spec <- logistic_reg(
   set_engine("glmnet") %>%
   set_mode("classification")
 
+#penalized_wf <- workflow() %>%
+#  add_model(penalized_spec) %>%
+#  add_recipe(em_recipe)
+
 penalized_wf <- workflow() %>%
   add_model(penalized_spec) %>%
-  add_recipe(em_recipe)
+  add_formula(emig ~ q4113_No + q409_I.do.not.use.the.internet + q1002_Female +
+                q1005_combined_Unemployed + q1005_combined_Housewife + q4116_No +
+                q102b_Bad + q103a2_Neither.agree.nor.disagree + q101_Very.bad +
+                q106_To.a.limited.extent + edu_combined_BA + q106_To.a.medium.extent +
+                q701b_Very.bad + q2181_I.disagree + q1010_Married + q2016_Quite.a.lot.of.trust +
+                age + q1074_Not.much + region_Rural + q20421_Very.bad +
+                q105_Absolutely.not.ensured + q106_Not.treated.equally.at.all +
+                q105_Not.ensured + q103a2_Somewhat.disagree + q102b_Good + q1001c +
+                q1074_Not.applicable + q514_I.disagree + q5181_Not.suitable.at.all +
+                q2181_I.strongly.disagree + q514_I.strongly.disagree + q1010b_X2 +
+                q2044_Good + q513_combined_X7 + q2011_No.trust.at.all +
+                q2013_No.trust.at.all + q1010_Widowed + q7013_Somewhat.positive +
+                q1005_combined_Student + q20422_Bad + q101_Good + q2042_Good +
+                q513_combined_X1 + q2011_Not.very.much.trust + q4062_I.don.t.follow.it.ever +
+                q4062_A.number.of.times.a.week + q261b2_X6 + q1074_Not.at.all +
+                q2042_Very.bad + q261b2_X3 + q102b_Very.bad + q2043_Good +
+                q7013_Neither.positive.nor.negative + q1005_combined_Other +
+                q2043_This.is.not.the.government.s.responsibility..Do.not.read. +
+                q2016_Not.very.much.trust + q103a2_Strongly.disagree + q1010b_X8 +
+                region_Refugee.camp + q261b2_X4 + q2011_Quite.a.lot.of.trust + q2044_Bad +
+                q20421_Bad + q409_Several.times.a.week + q1010b_X10 +
+                q1010_Divorced.or.separated + q2043_Bad + q409_Daily + q409_Once.a.week +
+                q1010b_X11 + q4062_Rarely +
+                q2044_This.is.not.the.government.s.responsibility..Do.not.read. +
+                q261b2_X5 + q513_combined_X8 + q261b2_X2 + q5181_Somewhat.suitable +
+                q701b_Somewhat.bad + q2016_No.trust.at.all + edu_combined_Above.BA +
+                edu_combined_Secondary..Inc..Professional.Technical.Diploma. +
+                q513_combined_Complete.Satisfied + q20422_Good + q20422_Very.bad +
+                q1010b_X1 + q513_combined_X6 + q701b_Neither.good.nor.bad + q1010b_X6 +
+                q409_Less.than.once.a.week + q7013_Somewhat.negative + q20421_Good +
+                q1010b_X3 + q1010b_X7 + q513_combined_X9 + q513_combined_X4
+  )
 
 penalty_grid <- grid_regular(
   penalty(range = c(-4, 0), trans = log10_trans()),  # e.g., 10^-4 to 10^0
@@ -306,80 +374,15 @@ best_model <- select_best(penalized_res, metric = "roc_auc")
 
 final_wf <- finalize_workflow(penalized_wf, best_model)
 
-final_fit <- fit(final_wf, data = train)
+# final_fit <- fit(final_wf, data = train)
+
+final_fit <- fit(final_wf, data = train_reduced)
 
 # Which predictors were kept?
 tidy(final_fit) %>%
   filter(term != "(Intercept)") %>%   # Remove intercept for clarity
   arrange(desc(abs(estimate))) %>%    # Sort by magnitude of effect
-  print(n = 115)
-
-#################################
-## BOOSTING WITH XGBOOST
-# Set up parallel backend
-registerDoFuture()
-plan(multisession, workers = parallel::detectCores() - 1)
-
-xgb_spec <- boost_tree(
-  trees = tune(),          # Number of boosting rounds (trees)
-  tree_depth = tune(),     # Maximum depth of each tree
-  learn_rate = tune(),      # Learning rate (shrinkage)
-  loss_reduction = tune(),  # gamma
-) %>%
-  set_engine("xgboost",
-             penalty = tune(),   # L2 regularization
-             mixture = tune()     # L1 regularization
-  ) %>%
-  set_mode("classification")
-
-# Workflow setup
-xgb_wf <- workflow() %>%
-  add_model(xgb_spec) %>%
-  add_formula(emig ~ q4113 + q409 + q1005_combined + q1002 + q101 +
-                q106 + q102b + q4116)
-
-xgb_grid <- grid_regular(
-  trees(range = c(100, 1000)),
-  tree_depth(range = c(2, 8)),
-  learn_rate(range = c(0.01, 0.3)),
-  loss_reduction(range = c(0, 5)),      # gamma
-  penalty(range = c(0, 5)),             # L2 regularization (lambda)
-  mixture(range = c(0, 1)),             # L1 regularization (alpha)
-  levels = 2
-)
-
-# Run the grid search with parallelization
-xgb_tuned <- tune_grid(
-  xgb_wf,
-  resamples = folds,
-  grid = xgb_grid,
-  metrics = metric_set(roc_auc, pr_auc),
-  control = control_grid(save_pred = TRUE)
-)
-
-# Show best-performing parameters
-xgb_tuned %>% 
-  show_best(metric = "roc_auc", n = 5)
-
-###############################
-# Evaluate model
-best_xgb <- select_best(xgb_tuned, metric = "roc_auc")
-
-final_xgb_wf <- finalize_workflow(xgb_wf, best_xgb)
-
-xgb_final_fit <- fit(final_xgb_wf, data = train)
-
-# Extract feature importance
-xgb_final <- extract_fit_parsnip(xgb_final_fit)$fit
-
-xgb.importance(model = xgb_final) %>% 
-  as_tibble() %>% 
-  arrange(desc(Gain)) %>%
   print(n = 100)
-
-# Simple plot
-xgb.importance(model = xgb_final) %>%
-  xgb.plot.importance(top_n = 100, measure = "Gain")
 
 ###################################################
 
