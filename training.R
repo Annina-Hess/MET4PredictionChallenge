@@ -397,12 +397,12 @@ logistic_spec <- logistic_reg() %>%
   set_engine("glm") %>%
   set_mode("classification")
 
-# 3. Combine into a workflow
+# Combine into a workflow
 logistic_wf <- workflow() %>%
   add_model(logistic_spec) %>%
   add_recipe(em_recipe)
 
-# 4. Fit model with cross-validation
+# Fit model with cross-validation
 set.seed(123)
 cv_results <- fit_resamples(
   logistic_wf,
@@ -411,22 +411,18 @@ cv_results <- fit_resamples(
   control = control_resamples(save_pred = TRUE)
 )
 
-# 5. Show top results
+# Show top results
 cv_results %>%
   show_best(metric = "roc_auc", n = 10)
 
-# 6. Select best model (if there were tuning parameters)
+# Select best model (if there were tuning parameters)
 best_model <- select_best(cv_results, metric = "roc_auc")
 
-# 7. Finalize and fit to full training data
+# finalize and fit to full training data
 final_logistic_wf <- finalize_workflow(logistic_wf, best_model)
 
 final_logistic_reg <- fit(final_logistic_wf, data = train)
 
-# 8. Save final model
-save(final_logistic_reg, file = "final_logistic_model.Rdata")
-
-# 9. Output performance metrics
 collect_metrics(cv_results)
 
 # ~~~ Random Forest ~~~
@@ -478,8 +474,47 @@ cv_results_rf %>%
 
 collect_metrics(cv_results_rf)
 
+# --------- variable importance plot ------------------
+
+rename_lookup <- c(
+  "age" = "Age",
+  "q1001c" = "Years living in current area",
+  "q4113_No" = "Facebook use: No",
+  "q409_I.do.not.use.the.internet" = "Internet use: No",
+  "q1005_combined_Housewife" = "Employment: Housewife",
+  "q4116_No" = "Instagram Use: No",
+  "q1002_Female" = "Gender: Female",
+  "q1005_combined_Unemployed" = "Employment: Unemployed",
+  "q101_Very.bad" = "Economic situation: Very bad",
+  "q1010_Married" = "Marital Status: Married"
+)
+
+top_vars <- vip::vi(rf_fit) %>%
+  arrange(desc(Importance)) %>%
+  slice_head(n = 10)
+
+top_vars <- top_vars %>%
+  mutate(
+    PrettyName = if_else(
+      !is.na(rename_lookup[Variable]),
+      rename_lookup[Variable],
+      Variable  # fallback to original
+    )
+  )
+
+ggplot(top_vars, aes(x = reorder(PrettyName, Importance), y = Importance)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Top 10 Variable Importances (Random Forest)",
+       x = "Variable",
+       y = "Importance") +
+  theme_minimal()
+
+
 # Extract the fitted model from the workflow
 rf_fit <- extract_fit_parsnip(final_rf_model)$fit
 
 # Plot variable importance
-vip(rf_fit, num_features = 20)
+vip(rf_fit, num_features = 10)
+
+
