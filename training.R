@@ -20,6 +20,7 @@ library(tidymodels)
 library(xgboost)
 library(doFuture)
 library(vip)
+library(ggplot2)
 
 # define function to assess classification performance
 auc <- function(phat,y){
@@ -104,6 +105,7 @@ em_recipe <- recipe(emig ~ q4113+
 set.seed(42)
 folds <- vfold_cv(train, v = 5, strata = emig)
 
+
 ###################
 ### Build model ###
 
@@ -185,8 +187,6 @@ final_logistic_wf <- finalize_workflow(logistic_wf, best_model)
 
 final_logistic_reg <- fit(final_logistic_wf, data = train)
 
-collect_metrics(cv_results)
-
 ## RANDOM FORESTS
 
 # Set up parallel backend
@@ -230,10 +230,10 @@ best_rf <- select_best(cv_results_rf, metric = "roc_auc")
 final_rf_wf <- finalize_workflow(rf_wf, best_rf)
 
 # Fit final model
-final_rf_model <- fit(final_rf_wf, data = train)
+m <- fit(final_rf_wf, data = train)
 
 # Save final model
-save(final_rf_model, file = "final_randomforest_model.Rdata")
+save(m, file = "final_model.Rdata")
 
 cv_results_rf %>%
   show_best(metric = "roc_auc", n = 5)
@@ -247,6 +247,8 @@ rf_fit <- extract_fit_parsnip(final_rf_model)$fit
 
 # Plot variable importance
 vip(rf_fit, num_features = 10)
+
+rf_fit <- extract_fit_parsnip(m)$fit
 
 rename_lookup <- c(
   "q4113_No" = "Facebook Use: No",
