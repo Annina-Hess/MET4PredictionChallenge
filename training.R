@@ -188,6 +188,7 @@ final_logistic_reg <- fit(final_logistic_wf, data = train)
 collect_metrics(cv_results)
 
 ## RANDOM FORESTS
+
 # Set up parallel backend
 registerDoFuture()
 plan(multisession, workers = parallel::detectCores() - 1)
@@ -197,7 +198,7 @@ rf_spec <- rand_forest(
   min_n = tune(),
   trees = 500
 ) %>%
-  set_engine("ranger", importance = "impurity") %>%
+  set_engine("ranger", importance = "permutation") %>%
   set_mode("classification")
 
 # Workflow using your recipe
@@ -241,6 +242,12 @@ collect_metrics(cv_results_rf)
 
 # --------- variable importance plot ------------------
 
+# Extract the fitted model from the workflow
+rf_fit <- extract_fit_parsnip(final_rf_model)$fit
+
+# Plot variable importance
+vip(rf_fit, num_features = 10)
+
 rename_lookup <- c(
   "age" = "Age",
   "q1001c" = "Years living in current area",
@@ -274,11 +281,3 @@ ggplot(top_vars, aes(x = reorder(PrettyName, Importance), y = Importance)) +
        x = "Variable",
        y = "Importance") +
   theme_minimal()
-
-
-# Extract the fitted model from the workflow
-rf_fit <- extract_fit_parsnip(final_rf_model)$fit
-
-# Plot variable importance
-vip(rf_fit, num_features = 10)
-
