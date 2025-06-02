@@ -263,7 +263,6 @@ em_recipe <- recipe(emig ~ q4113+
 set.seed(42)
 folds <- vfold_cv(train, v = 5, strata = emig)
 
-
 #########
 prep_recipe <- prep(em_recipe)
 baked_train <- bake(prep_recipe, new_data = NULL)
@@ -351,7 +350,6 @@ penalized_wf <- workflow() %>%
                 q1010b_X1 + q513_combined_X6 + q701b_Neither.good.nor.bad + q1010b_X6 +
                 q409_Less.than.once.a.week + q7013_Somewhat.negative + q20421_Good +
                 q1010b_X3 + q1010b_X7 + q513_combined_X9 + q513_combined_X4
-  )
 )
 
 penalty_grid <- grid_regular(
