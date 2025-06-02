@@ -236,7 +236,7 @@ final_rf_model <- fit(final_rf_wf, data = train)
 save(final_rf_model, file = "final_randomforest_model.Rdata")
 
 cv_results_rf %>%
-  show_best(metric = "roc_auc", n = 1)
+  show_best(metric = "roc_auc", n = 5)
 
 collect_metrics(cv_results_rf)
 
@@ -249,16 +249,16 @@ rf_fit <- extract_fit_parsnip(final_rf_model)$fit
 vip(rf_fit, num_features = 10)
 
 rename_lookup <- c(
+  "q4113_No" = "Facebook Use: No",
+  "q409_I.do.not.use.the.internet" = "Internet Use: No",
   "age" = "Age",
-  "q1001c" = "Years living in current area",
-  "q4113_No" = "Facebook use: No",
-  "q409_I.do.not.use.the.internet" = "Internet use: No",
   "q1005_combined_Housewife" = "Employment: Housewife",
   "q4116_No" = "Instagram Use: No",
+  "q409_Daily" = "Internet Use: Daily",
   "q1002_Female" = "Gender: Female",
-  "q1005_combined_Unemployed" = "Employment: Unemployed",
-  "q101_Very.bad" = "Economic situation: Very bad",
-  "q1010_Married" = "Marital Status: Married"
+  "q102b_Bad" = "Personal Economic Status: Bad",
+  "q1010_Married" = "Marital Status: Married",
+  "q1005_combined_Unemployed" = "Employment: Unemployed"
 )
 
 top_vars <- vip::vi(rf_fit) %>%
@@ -274,10 +274,13 @@ top_vars <- top_vars %>%
     )
   )
 
-ggplot(top_vars, aes(x = reorder(PrettyName, Importance), y = Importance)) +
+plot_imp <- ggplot(top_vars, aes(x = reorder(PrettyName, Importance), y = Importance)) +
   geom_col(fill = "steelblue") +
   coord_flip() +
   labs(title = "Top 10 Variables by Importance (Random Forest)",
        x = "Variable",
        y = "Importance") +
   theme_minimal()
+
+# Save the plot as a PNG file
+ggsave("plot_imp.png", plot = plot_imp, width = 4.5, height = 4, dpi = 300)
