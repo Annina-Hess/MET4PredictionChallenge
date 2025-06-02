@@ -13,16 +13,22 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # be available for install via install.packages()
 # or remotes::install_github().
 
-library("ROCR")
-library("dplyr")
+library(ROCR)
+library(dplyr)
+library(tidymodels)
+library(xgboost)
+library(doFuture)
+library(vip)
+library(ggplot2)
+
 
 # define function to assess classification performance
 
 auc <- function(phat,y){
-	pred <- ROCR::prediction(phat, y)
-	perf <- ROCR::performance(pred,"auc")
-	auc <- perf@y.values[[1]]
-	return(auc)
+  pred <- ROCR::prediction(phat, y)
+  perf <- ROCR::performance(pred,"auc")
+  auc <- perf@y.values[[1]]
+  return(auc)
 }
 
 # load train and test data
@@ -37,39 +43,18 @@ load("AB4x_eval_mock.Rdata")
 
 # ~~~ example code start ~~~
 
-# Standardize variables
-age_mu <- mean(test$age,na.rm=TRUE)
-age_sd <- sd(test$age,na.rm=TRUE)
-test <- test |> mutate(age  = (age-age_mu)/age_sd)
-
-# define outcome as binary
 test$emig <- factor(test$emig, levels = c("No", "Yes"))
-
-# simple mean imputation
-test <- test |> mutate(age = if_else(is.na(age),age_mu,age))
 
 # ~~~ example code end ~~~
 
 # Load trained model 
-load("final_elasticnet_model.Rdata")
-load("final_logistic_model.Rdata")
-load("final_randomforest_model.Rdata")
-#randomforest
+load("final_model.Rdata")
 
 # Obtain predictions
 # Note that `pred` should be a vector of predicted probabilities;
 # not a vector of predicted classes
 # ~~~ example code start ~~~
-
-#pred <- predict(final_model,newdata=test,type="response") predict for elastic net
-pred <- predict(final_elasticnet_reg, new_data = test, type = "prob")$.pred_Yes
-
-# Predict class probabilities PREDICT FOR LOGISTIC REGRESSION
-pred<- predict(final_logistic_reg, new_data = test, type = "prob")$.pred_Yes
-
-# for RANDOM FOREST
-pred <- predict(final_rf_model, new_data = test, type = "prob")$.pred_Yes
-
+pred <- predict(m, new_data = test, type = "prob")$.pred_Yes
 
 # ~~~ example code end ~~~
 
